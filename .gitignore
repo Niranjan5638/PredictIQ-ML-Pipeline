@@ -1,0 +1,22 @@
+# Data files
+data/PdM_telemetry.csv
+data/master_features.csv
+
+# Notebook checkpoints
+notebooks/.ipynb_checkpoints/
+
+# MLflow artifacts
+notebooks/mlruns/
+notebooks/mlflow.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+.env/
+
+# Model files (large)
+models/*.pkl

@@ -1,0 +1,103 @@
+name: PredictIQ CICD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # 🔑 MANUAL TRIGGER BUTTON
+
+jobs:
+  test:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install deps
+        run: pip install -r requirements.txt pytest
+      
+      - name: Run tests
+        run: pytest tests/ -v
+
+  monitor:
+    name: 🔍 Drift Monitoring
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install deps
+        run: pip install pandas numpy scikit-learn evidently
+      
+      - name: Run drift detection
+        run: python monitoring/monitor_drift.py
+
+  retrain:  # 🆕 NEW JOB
+    name: 🤖 Automated Retraining
+    runs-on: ubuntu-latest
+    needs: monitor
+    if: github.event_name == 'workflow_dispatch'  # Only manual trigger
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install deps
+        run: |
+          pip install pandas==2.1.4 numpy lightgbm optuna mlflow scikit-learn joblib
+      
+      - name: Download data  # 🆕 Your data files
+        run: |
+          # Replace with your data download (Kaggle/S3/etc)
+          curl -L https://your-data-link/masterfeatures.csv > data/masterfeatures.csv
+      
+      - name: Run retraining pipeline
+        run: python monitoring/retrain_pipeline.py
+      
+      - name: Upload new model artifact  # 🆕 Downloadable!
+        uses: actions/upload-artifact@v4
+        with:
+          name: lgbm-v1.1-model
+          path: |
+            models/lgbm_final_v1.1.pkl
+            models/feature_cols_v1.1.pkl
+          retention-days: 30
+
+  build:
+    name: 🐳 Docker Build
+    runs-on: ubuntu-latest
+    needs: [test, monitor]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: docker build -t predictiq:latest .
+      
+      - name: Test container
+        run: docker run --rm predictiq:latest python -c "print('API healthy')"
+
+  deploy:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Add your AWS/ECS deploy steps here
+      - name: Deploy
+        run: echo "🚀 Deploying to AWS ECS..."
