@@ -38,11 +38,13 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Install monitoring deps
-        run: pip install pandas numpy scikit-learn evidently
-    
+      - name: Install monitoring deps  # ← FIXED
+        run: |
+          pip install pandas numpy scikit-learn evidently mlflow
+      
       - name: Run drift detection
         run: python monitoring/monitor_drift.py
+
 
   retrain:
     name: 🤖 Auto-Retraining (Optuna + LightGBM)
